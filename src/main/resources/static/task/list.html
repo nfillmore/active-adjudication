@@ -1,0 +1,225 @@
+<html>
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+
+    <style>
+
+
+    </style>
+    <title>My Labs</title>
+</head>
+<body>
+
+<div class="container-fluid" style="margin-top:60px;">
+    <div class="row">
+        <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
+            <ul id="menus" class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="#">Task List <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="new.html">New Task</a>
+                </li>
+            </ul>
+
+        </nav>
+
+        <main role="main" class="col-sm-9 ml-sm-auto col-md-10 pt-3">
+            <h1>Task List</h1>
+            <div class="table-responsive" style="overflow:auto">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Fork From</th>
+                        <th>Created At</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="taskListBody">
+
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="forkUserSelectorModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Fork Users Selector</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>User Name</th>
+                    </tr>
+                    </thead>
+                    <tbody id="usersSelectorBody">
+
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary action-do-fork">Do Fork</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="../js/jquery-3.2.1.min.js"></script>
+<script src="../js/popper.min.js"></script>
+<script src="../js/bootstrap.min.js"></script>
+<script src="../js/menus.js"></script>
+<script src="../js/header.js"></script>
+<script src="../js/restClient.js"></script>
+<script>
+    var findAllTasks = function(){
+        $.getJSON('/api/tasks',function(data){
+            console.log('tasks:',data);
+            renderTaskList(data);
+        });
+    }
+
+    var renderTaskList = function(data){
+        var html = '';
+        $.each(data, function(index,item){
+            html += '<tr>';
+            html += '<td>'+(index+1)+'</td>';
+            html += '<td>'+item.name+'</td>';
+            html += '<td>'+(item.forkFromName?item.forkFromName:'')+'</td>';
+            html += '<td>'+item.createdAt+'</td>';
+            html += '<td></td>';
+            html += '<td><div class="btn-group btn-group-sm">';
+            if(item.forkFromId){
+                html +='<button type="button" class="btn btn-info btn-sm action-view-task" data-task-id="'+item.id+'">Assign labels</button>';
+                html +='<button type="button" class="btn btn-danger btn-sm action-delete-task" data-task-id="'+item.id+'">Delete</button>';
+            }else{
+                html +='<button type="button" class="btn btn-info btn-sm action-view-task" data-task-id="'+item.id+'">Assign labels</button>';
+                html +='<button type="button" class="btn btn-info btn-sm action-edit-task" data-task-id="'+item.id+'">Edit search criteria</button>';
+                html +='<button type="button" class="btn btn-info btn-sm action-download-task" data-task-id="'+item.id+'">Download labels</button>';
+                html +='<button type="button" class="btn btn-info btn-sm action-fork-task" data-task-id="'+item.id+'">Fork</button>';
+                html +='<button type="button" class="btn btn-danger btn-sm action-delete-task" data-task-id="'+item.id+'">Delete</button>';
+            }
+
+            html += '</div></td>';
+
+            html += '</tr>';
+        });
+
+        $('#taskListBody').html(html);
+    };
+
+    var findAllUsers = function(){
+        restClient.get('/api/shared/users',{},function(data){
+            console.log('users:',data);
+            var html = '';
+            $.each(data, function(index,item){
+                html += '<tr>';
+                html += '<td><input class="cb-user" type="checkbox" data-username="'+item.username+'"/></td>';
+                html += '<td>'+item.username+'</td>';
+                html += '</tr>';
+            });
+
+            $('#usersSelectorBody').html(html)
+        });
+    }
+    var currentTaskId = null;
+    $(function(){
+        findAllTasks();
+
+        $(document).on('click','.action-view-task', function(){
+            var $this = $(this);
+            var taskId = $this.data('taskId');
+            console.log('Task id:'+taskId);
+            window.location.href = '/datatables_app/index.html?taskId='+taskId;
+        });
+
+        $(document).on('click','.action-delete-task',function(){
+            var $this = $(this);
+            var taskId = $this.data('taskId');
+            console.log('Task id:'+taskId);
+            if(confirm("Confirm to delete the task?")){
+                $.ajax({
+                    url: '/api/tasks/'+taskId,
+                    type: 'DELETE',
+                    success: function(result) {
+                        alert('Delete successful');
+                        findAllTasks();
+                    }
+                });
+            }
+        });
+
+        $(document).on('click','.action-edit-task',function(){
+            var $this = $(this);
+            var taskId = $this.data('taskId');
+            console.log('Task id:'+taskId);
+            window.location.href= "edit.html?taskId="+taskId;
+        });
+        $(document).on('click','.action-fork-task',function(){
+            var $this = $(this);
+            var taskId = $this.data('taskId');
+            currentTaskId = taskId;
+            console.log('Task id:'+taskId);
+            $('#forkUserSelectorModal').modal('show');
+        });
+        $(document).on('click','.action-download-task',function(){
+            var $this = $(this);
+            var taskId = $this.data('taskId');
+            window.open('/api/tasks/'+taskId+'/export');
+        });
+
+        $('.action-do-fork').click(function(){
+            var selectedUserEles = $('.cb-user:checked');
+            console.log(selectedUserEles);
+            if(selectedUserEles.length==0){
+                alert('Please select user first');
+                return;
+            }
+            var targetUsers = [];
+            $.each(selectedUserEles,function(index,ele){
+                var username = $(ele).data('username');
+                targetUsers.push(username);
+            });
+
+            restClient.post('/api/tasks/'+currentTaskId+'/fork',{
+                taskId: currentTaskId,
+                targetUsers: targetUsers.join(',')
+            },function(resp){
+                $('#forkUserSelectorModal').modal('hide');
+                findAllTasks();
+            });
+
+        });
+
+        findAllUsers();
+        menus.init();
+        header.init();
+    });
+
+
+
+</script>
+
+</body>
+</html>

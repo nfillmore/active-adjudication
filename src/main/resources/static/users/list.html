@@ -1,0 +1,213 @@
+<html>
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+
+    <style>
+    </style>
+    <title>Users Manager</title>
+</head>
+<body>
+
+<div class="container-fluid" style="margin-top:60px;">
+    <div class="row">
+        <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
+            <ul id="menus" class="nav nav-pills flex-column">
+
+            </ul>
+
+        </nav>
+
+        <main role="main" class="col-sm-9 ml-sm-auto col-md-10 pt-3">
+            <div>
+                <button type="button" class="btn btn-primary" id="btnCreateUse" data-toggle="modal"
+                        data-target="#userModal">New User
+                </button>
+            </div>
+            <h1>User List</h1>
+            <div class="table-responsive" style="overflow:auto">
+                <table class="table table-striped">
+                    <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Enabled</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="userListBody">
+
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<div class="modal fade" id="userModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">New User</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                        <label for="username" class="col-form-label">Username:</label>
+                        <input type="text" class="form-control" id="username">
+                    </div>
+                    <div class="form-group">
+                        <label for="password" class="col-form-label">Password:</label>
+                        <input type="password" class="form-control" id="password">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary action-save-user">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="passModal" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Reset Password</h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form>
+                    <div class="form-group">
+                        <label for="newpassword" class="col-form-label">New Password:</label>
+                        <input type="password" class="form-control" id="newpassword">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary action-reset-password">Save</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="../js/jquery-3.2.1.min.js"></script>
+<script src="../js/popper.min.js"></script>
+<script src="../js/bootstrap.min.js"></script>
+<script src="../js/menus.js"></script>
+<script src="../js/header.js"></script>
+<script src="../js/restClient.js"></script>
+<script>
+    var findAllUsers = function(){
+        restClient.get('/api/mgr/users',{},function(data){
+            console.log('users:',data);
+            renderUserList(data);
+        });
+    }
+
+    var renderUserList = function(data){
+        var html = '';
+        $.each(data, function(index,item){
+            html += '<tr>';
+            html += '<td>'+item.username+'</td>';
+            html += '<td>'+(item.enabled?'Enable':'Disable')+'</td>';
+            html += '<td><div class="btn-group">'
+                    +'<button type="button" class="btn btn-info btn-sm action-edit-password" data-username="'+item.username+'">Reset Password</button>';
+            if(item.username !== 'admin')
+                html += '<button type="button" class="btn btn-danger btn-sm action-delete-task" data-username="'+item.username+'">Delete</button>';
+
+            html += '</div></td>';
+
+            html += '</tr>';
+        });
+
+        $('#userListBody').html(html);
+    };
+    var currentUsername;
+    $(function(){
+        menus.init();
+        header.init();
+        findAllUsers();
+
+        $(document).on('click','.action-delete-task',function(){
+            var $this = $(this);
+            var username = $this.data('username');
+            if(confirm("Confirm to delete the user?")){
+                $.ajax({
+                    url: '/api/mgr/users/'+username,
+                    type: 'DELETE',
+                    success: function(result) {
+                        alert('Delete successful');
+                        findAllUsers();
+                    }
+                });
+            }
+        });
+
+        $(document).on('click','.action-edit-password', function(){
+            var $this = $(this);
+            $('#passModal').modal('show');
+            currentUsername = $this.data('username');
+        });
+
+        $('.action-save-user').click(function(){
+            var username = $('#username').val();
+            if(!username || username.length == 0){
+                alert("Username can't not be empty");
+                return;
+            }
+
+            var password = $('#password').val();
+            if(!password || password.length == 0){
+                alert("Password can't not be empty");
+                return;
+            }
+
+            restClient.post('/api/mgr/users',{
+                username:username,
+                password: password
+
+            }, function(data){
+                alert('Save successful');
+                $('#userModal').modal('hide');
+                findAllUsers();
+            });
+        });
+
+        $('.action-reset-password').click(function(){
+            var password = $('#newpassword').val();
+            if(!password || password.length == 0){
+                alert("Password can't not be empty");
+                return;
+            }
+            restClient.post('/api/mgr/users/'+currentUsername+'/resetPass',{
+                password: password
+
+            }, function(data){
+                alert('Save successful');
+                $('#passModal').modal('hide');
+                findAllUsers();
+            });
+        });
+    });
+
+
+</script>
+
+</body>
+</html>

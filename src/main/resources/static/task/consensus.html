@@ -1,0 +1,217 @@
+<html>
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+    <style>
+
+
+    </style>
+    <title>Task Consensus</title>
+</head>
+<body>
+
+<div class="container-fluid" style="margin-top:75px;">
+    <div class="row">
+        <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
+            <ul id="menus" class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a class="nav-link active" href="list.html">Task List <span class="sr-only">(current)</span></a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="list.html">New Task</a>
+                </li>
+            </ul>
+
+        </nav>
+
+        <main role="main" class="col-sm-9 ml-sm-auto col-md-10 pt-3">
+            <h1>Task Consensus</h1>
+            <form>
+                <div class="form-group row">
+                    <label class="col-sm-2 col-form-label">Root Task</label>
+                    <div class="col-sm-8">
+                        <select id="sourceTask" class="form-control"></select>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary" id="btnSimulateConsensus">Simulate Consensus</button>
+                <button type="button" class="btn btn-primary" id="btnSave">Save</button>
+            </form>
+            <h2>Simulate Consensus Result</h2>
+            <div class="table-responsive" style="overflow:auto">
+                <table id="tableExample" class="table table-striped">
+                    <thead id="tableExampleHeader">
+                    <tr>
+                        <th>#</th>
+                        <th>Source Label</th>
+                        <th>Target Label</th>
+                        <th>Result</th>
+                        <th>Example Id</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableExampleBody">
+
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="../js/jquery-3.2.1.min.js"></script>
+<script src="../js/popper.min.js"></script>
+<script src="../js/bootstrap.min.js"></script>
+<script src="../js/menus.js"></script>
+<script src="../js/header.js"></script>
+<script src="../js/restClient.js"></script>
+<script>
+
+    $.urlParam = function (name) {
+        var results = new RegExp('[\?&]' + name + '=([^&#]*)')
+                          .exec(window.location.href);
+
+        return results[1] || 0;
+    }
+
+    var tasks = [];
+    var init = function(){
+        restClient.get('/api/tasks/root',{}, function(resp){
+            tasks = resp;
+
+            var html = '';
+            html += '<option value="-1">Please select</option>';
+            $.each(tasks, function(index,item){
+                html += '<option value="'+index+'">'+item.name+'</option>';
+            });
+
+            $('#sourceTask').html(html);
+        });
+    }
+    var examples = null;
+
+    var doSimulateConsensus = function(){
+            var taskId = tasks[parseInt($('#sourceTask').val())].id;
+            if(taskId.length == 0){
+                alert('Root task can\'t be empty');
+                return;
+            }
+
+            restClient.post('/api/tasks/'+taskId+'/simulateConsensus',{
+            }, function(resp){
+                console.log(resp);
+                var html = '';
+                var forkedSubTasks = resp.forkedSubTasks;
+                var header = '<thead><tr><th>#</th>';
+                $.each(forkedSubTasks,function(index,item){
+                    header += '<th>'+(item.ownerId+'\'s Label')+'</th>';
+                });
+                header += '<th>Root Label</th><th>Result</th><th>Example Id</th>';
+                header += '</tr></thead>';
+                html += header + '<tbody>';
+                examples = resp.examples;
+                $.each(examples,function(index,item){
+                    html += '<tr>';
+                    html += '<td>'+(index+1)+'</td>';
+                    var result = '';
+                    var first = true;
+                    var lastLabelVal = null;
+                    var conflict = false;
+                    $.each(forkedSubTasks,function(subTaskIndex,subTask){
+                        var labelVal = item[subTask.id+'_LabelValue'];
+                        html += '<td>'+(labelVal?labelVal:'')+'</td>';
+                        if(first){
+                            lastLabelVal = labelVal;
+                            first = false;
+                        }else{
+                            if(lastLabelVal != labelVal && lastLabelVal && labelVal){
+                                conflict = true;
+                            }
+                            if(labelVal){
+                                lastLabelVal = labelVal;
+                            }
+                        }
+                    });
+                    html += '<td>'+(item.sourceLabelValue?item.sourceLabelValue:'')+'</td>';
+                    var selectEleHtml = '<select class="action-manual-select" data-index="'+index+'"><option value="conflict">conflict</option><option value="yes">yes</option><option value="no">no</option><option value="-">-</option></select>';
+                    if(conflict){
+                        //result = 'conflict';
+                        result = selectEleHtml;
+                        item.resultLabelValue = 'conflict';
+                    }else if(lastLabelVal != item.sourceLabelValue && lastLabelVal && item.sourceLabelValue){
+                        //result = 'conflict';
+                        result = selectEleHtml;
+                        item.resultLabelValue = 'conflict';
+                    }else if(lastLabelVal){
+                        result = lastLabelVal;
+                        item.resultLabelValue = result;
+                    }
+                    html += '<td>'+(result)+'</td>';
+
+                    html += '<td>'+(item.id)+'</td>';
+                    html += '</tr>';
+                });
+                html += '</tbody>';
+                $('#tableExample').html(html);
+            });
+    };
+
+    $(function(){
+        menus.init();
+        header.init();
+        init();
+
+        $(document).on('change','.action-manual-select', function(){
+            var $this = $(this);
+            var index = parseInt($this.data('index'));
+            var example = examples[index];
+            example.resultLabelValue = $this.val();
+            console.log(example);
+        });
+
+        $('#btnSave').click(function(){
+            if(!examples){
+                alert('Please simulate consensus first');
+                return;
+            }
+            var params = [];
+            var conflict = false;
+            $.each(examples,function(index,item){
+                if(item.resultLabelValue == 'conflict'){
+                    conflict = true;
+                }
+
+                params.push({
+                    exampleId: item.id,
+                    labelValue: item.resultLabelValue
+                });
+            });
+
+            if(conflict){
+                alert('There still have conflict label value, please resolve it');
+                return;
+            }
+            var taskId = tasks[parseInt($('#sourceTask').val())].id;
+            console.log(params);
+            restClient.postJson('/api/tasks/'+taskId+'/submitConsensus',params, function(){
+                alert('Save successful!');
+                doSimulateConsensus();
+            });
+
+        });
+
+        $('#btnSimulateConsensus').click(function(){
+            doSimulateConsensus();
+        });
+    });
+
+</script>
+
+</body>
+</html>

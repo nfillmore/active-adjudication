@@ -1,0 +1,46 @@
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:1.5.5.RELEASE")
+    }
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'org.springframework.boot'
+
+jar {
+    baseName = 'adjudicator-server'
+    version = '0.1.0'
+}
+
+repositories {
+    mavenCentral()
+    maven { url "https://repository.jboss.org/nexus/content/repositories/releases" }
+}
+
+configurations {
+    compile.exclude module: "spring-boot-starter-tomcat"
+}
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+dependencies {
+    compile 'org.springframework.boot:spring-boot-starter-web'
+//    compile 'org.springframework.boot:spring-boot-starter-aop'
+//    compile("org.springframework.boot:spring-boot-starter-data-jpa")
+//    compile("org.springframework:spring-jdbc")
+    compile("org.springframework.boot:spring-boot-starter-security")
+    compile("org.springframework.boot:spring-boot-starter-jdbc")
+    compile("org.springframework.boot:spring-boot-starter-undertow")
+//    compile("com.h2database:h2")
+    compile("org.xerial:sqlite-jdbc:3.8.11.2")
+    compile 'com.google.guava:guava:23.3-jre'
+    compile 'net.sf.supercsv:super-csv:2.4.0'
+    compile("org.tensorflow:tensorflow:1.6.0")
+    testCompile("junit:junit")
+}

@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<link rel="stylesheet" type="text/css" href="/datatables_app/DataTables/datatables.css"/>
+<script type="text/javascript" src="/datatables_app/DataTables/datatables.js"></script>
+<script type="text/javascript" src="/datatables_app/datatable_prev_next_row.js"></script>
+
+<script type="text/javascript" src="/datatables_app/layout-1.4.3/source/jquery/jquery-ui-1.11.0.js"></script>
+
+<!-- <link rel="stylesheet" type="text/css" href="/datatables_app/layout-1.4.3/source/stable/layout-default.css"/> -->
+<!-- <link rel="stylesheet" type="text/css" href="/datatables_app/layout-1.4.3/demos/css/jquery-ui.css"/> -->
+<!--<link rel="stylesheet" type="text/css" href="/datatables_app/layout-1.4.3/demos/css/themes/ui-lightness/jquery-ui.css"/>-->
+<script type="text/javascript" src="/datatables_app/layout-1.4.3/source/stable/jquery.layout_and_plugins.js"></script>
+
+<!--
+<script type="text/javascript" src="/datatables_app/DataTables/jQuery-2.2.4/jquery-2.2.4.js"></script>
+<link rel="stylesheet" type="text/css" href="//cdn.datatables.net/1.10.15/css/jquery.dataTables.min.css"/>
+<script type="text/javascript" src="//cdn.datatables.net/1.10.15/js/jquery.dataTables.min.js"></script>
+-->
+
+<style>
+.clear { clear: both; }
+
+.logoutForm{
+    display: inline;
+    float: right;
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
+
+.dataTables_filter{
+    display:'none'
+}
+
+.yesRow{
+    background-color:green !important;
+    color:white;
+}
+
+.yesRow .sorting_1{
+    background-color:green !important;
+}
+
+.noRow{
+    background-color:red !important;
+    color:white;
+}
+
+.noRow .sorting_1{
+    background-color:red !important;
+}
+
+#datatable_filter{
+    display: none;
+}
+
+</style>
+
+<script type="text/javascript">
+$.urlParam = function (name) {
+    var results = new RegExp('[\?&]' + name + '=([^&#]*)')
+                      .exec(window.location.href);
+
+    return (results && results[1]) || 0;
+}
+
+var table; // we declare this globally just for easier debugging
+var tmp;
+var label_example; // we declare this globally for use in javascript: links
+var on_column_search_change; // we declare this globally for use in html attrs
+var taskId;
+var readonly = false;
+$(document).ready(function() {
+  taskId = $.urlParam('taskId');
+  readonly = $.urlParam('readonly');
+  if(!readonly){
+    readonly = false;
+  }else{
+    readonly = readonly == 'true'
+  }
+  if(!taskId){
+      $('#btnExport').hide();
+  }else{
+    $('#btnExport').click(function(){
+        window.open('/api/tasks/'+taskId+'/export');
+    });
+  }
+  $.getJSON("/datatables_data_head?taskId="+taskId, {}).done(function(column_names) {
+
+    function get_desired_table_height() {
+      // return 2*$("#table-wrapper table").height();
+      //var header_height = $(".ui-layout-center .dataTables_scrollHead").height();
+      //var footer_height = $(".ui-layout-center .dataTables_info").height();
+      var center_height = layout.center.state.innerHeight;
+      var above_height = $("#above-table").height();
+      var header_height = $(".ui-layout-center .dataTables_scrollHead").height();
+      var below_height = $("#below-table").height();
+      var hf_height = above_height + header_height + below_height;
+      var fudge = -5;
+      return (center_height - hf_height + fudge);
+    }
+
+    function get_desired_table_width() {
+      var center_width = layout.center.state.innerWidth;
+      return center_width;
+    }
+
+    function resize_table() {
+      // Update the scrollable area's height and width.
+      $("div.dataTables_scrollBody").height(get_desired_table_height() + "px");
+      $("div.dataTables_scrollBody").width(get_desired_table_width() + "px");
+      table.scroller.measure(); // update cached measurements and redraw
+      //table.draw();
+    }
+
+    function enable_column_search_inputs() {
+      // Enable each column's search input.
+      //$("#datatable thead tr:first th input").each(function(index) // "first" not appropriate with fixedColumns
+      $("#datatable thead tr:first th input").each(function(index) {
+        var input = this;
+        var column = table.column(index);
+        console.log(input);
+        $(input).on('keyup change', function() {
+          if (column.search() !== input.value) {
+            column.search(input.value).draw();
+          }
+        });
+      });
+    }
+
+    function on_init_complete() {
+      resize_table();
+      enable_column_search_inputs();
+    }
+
+    // Initialize the layout.
+    var layout = $("body").layout({
+      east__initClosed: true,
+      west__initClosed: true,
+      south__initClosed: true,
+      center__onresize: resize_table,
+      applyDemoStyles: true
+    });
+    layout.close("east");
+    layout.close("west");
+    layout.close("south");
+
+    // Initialize the tabs.
+    //$("#tabs").tabs();
+    $("#tab-tb").click(function() { show_tab("tb"); });
+    $("#tab-ft").click(function() { show_tab("ft"); });
+    $("#tab-stats").click(function() { show_tab("stats"); });
+    $("#tab-content-ft").hide();
+    $("#tab-content-stats").hide();
+
+    // Function to change tabs.
+    function show_tab(name) {
+      $("#tab-content-tb").hide();
+      $("#tab-content-ft").hide();
+      $("#tab-content-stats").hide();
+      $("#tab-content-" + name).show();
+      if (name == "ft")
+        refresh_ft();
+      if (name == "stats")
+        refresh_stats();
+    }
+
+    function refresh_stats() {
+      $.getJSON("/datatables_stats", {}).done(function(data) {
+        console.log(data);
+        var h = "";
+        h += "<div>Trainining-set precision: " + data["trainPrecision"] + "%</div>";
+        h += "<div>Trainining-set recall: " + data["trainRecall"] + "%</div>";
+        h += "<div>Trainining-set accuracy: " + data["trainAccuracy"] + "%</div>";
+        $("#tab-content-stats").html(h);
+      });
+    }
+
+    function refresh_ft() {
+      $.getJSON("/datatables_ft", {}).done(function(data) {
+        console.log(data.ftCoefs);
+        var h = "<table><tr><th>Feature</th><th>Coefficient</th></tr>";
+        $.each(data.ftCoefs, function(i, ft_name_and_coef) {
+          var ft_name = ft_name_and_coef[0];
+          var coef = ft_name_and_coef[1];
+          h += "<tr><td>" + ft_name + "</td><td>" + coef + "</td></tr>";
+        });
+        h += "</table>";
+        $("#tab-content-ft").html(h);
+      });
+    }
+
+    // Define the columns of the data table, and create search input elements
+    // and a heading for each column.
+    var columns_data_object = [];
+    var column_searches = [];
+    var column_headings = [];
+    $.each(column_names, function(i, colname) {
+      var columnDef = {"data": colname, "name": colname};
+      if(i>3){
+          columnDef.orderable = true;
+      }else{
+          columnDef.orderable = false;
+      }
+      columns_data_object.push(columnDef);
+      var column_input_id = "column_search_" + colname
+      var f = "on_column_search_change(\"" + colname + "\", \"" + column_input_id + "\")";
+      if(i>0){
+        column_searches.push("<th><input class='action-column-search' data-colname='"+colname+"' type='text' placeholder='Filter' " +
+                           "           style='width: 100%' " +
+                           "           id='" + column_input_id + "' " +
+                           //"           onkeyup='" + f + "' " +
+                           //"         onchange='" + f +"' " +
+                           "/></th>");
+      }else{
+        column_searches.push("<th></th>");
+      }
+
+      column_headings.push("<th>" + colname + "</th>");
+    });
+    $("#datatable thead").html("");
+    $("#datatable thead").append("<tr>" + column_searches.join("") + "</tr>");
+    $("#datatable thead").append("<tr>" + column_headings.join("") + "</tr>");
+
+    function get_selected_row_ids() {
+      var data = table.rows({selected: true}).data();
+      return data.map(function(r) { return r.RowID; });
+    }
+
+    var buttons_object = [{
+      text: 'Select <u>A</u>ll',
+      key: 'a',
+      action: function(e, dt, node, config) {
+        table.rows({search: "applied"}).select();
+      }
+    },
+    {
+      text: 'Select N<u>o</u>ne',
+      key: 'o',
+      action: function(e, dt, node, config) {
+        table.rows().deselect();
+      }
+    },
+    {
+      text: 'Mark <u>Y</u>es',
+      key: 'y',
+      action: function(e, dt, node, config) {
+        label_examples(get_selected_row_ids(table), "yes");
+      }
+    },
+    {
+      text: 'Mark <u>N</u>o',
+      key: 'n',
+      action: function(e, dt, node, config) {
+        label_examples(get_selected_row_ids(table), "no");
+      }
+    },
+    "colvis",
+    {
+      extend: "collection",
+      text: "More",
+      buttons: [
+        // {
+        //   text: 'Extend Selection Up (shift-j)',
+        //   key: {key: 'j', shiftKey: true},
+        //   action: function(e, dt, node, config) {
+        //     console.log(["shift j", node]);
+        //     extend_selection_up();
+        //   }
+        // },
+        // {
+        //   text: 'Extend Selection Down (shift-k)',
+        //   key: {key: 'k', shiftKey: true},
+        //   action: function(e, dt, node, config) {
+        //     console.log(["shift k", node]);
+        //     extend_selection_down();
+        //   }
+        // },
+        {
+          text: 'Select Up (j)',
+          key: {key: 'j', shiftKey: false},
+          action: function(e, dt, node, config) {
+            select_up(table);
+          }
+        },
+        {
+          text: 'Select Down (k)',
+          key: {key: 'k', shiftKey: false},
+          action: function(e, dt, node, config) {
+            select_down(table);
+          }
+        },
+      ]
+    }];
+
+    function get_selected_row_indices(_table) {
+      if(!_table)
+        _table = table;
+
+      return _table.rows({selected: true})[0];
+    }
+
+    function get_prev_row_index(_table) {
+      if(!_table){
+        _table = table;
+      }
+      var selected_row_indices = get_selected_row_indices(_table);
+      if (selected_row_indices.length == 0)
+        return 0;
+      var first = selected_row_indices[0];
+      var prev = first - 1;
+      return (prev >= 0) ? prev : 0;
+    }
+
+    function get_next_row_index(_table) {
+      if(!_table){
+        _table = table;
+      }
+      var selected_row_indices = get_selected_row_indices(_table);
+      if (selected_row_indices.length == 0)
+        return 0;
+      var last = selected_row_indices[selected_row_indices.length - 1];
+      var next = last + 1;
+      var max_index = table.rows()[0].length - 1; // XXX is this efficient?
+      return (next <= max_index) ? next : max_index;
+    }
+
+    function scrollIntoViewIfNeeded(target) {
+      // From https://stackoverflow.com/a/37829643
+      var rect = target.getBoundingClientRect();
+      if (rect.bottom > window.innerHeight) {
+        target.scrollIntoView(false);
+      }
+      if (rect.top < 0) {
+        target.scrollIntoView();
+      } 
+    }
+
+    function select_down(_table) {
+        if(!_table){
+        _table = table
+      }
+      var i = get_prev_row_index(_table);
+      _table.rows().deselect();
+      _table.row(i).select();
+      //table.row(i).scrollTo();
+      scrollIntoViewIfNeeded(_table.row(i).node());
+    }
+
+    function select_up(_table) {
+      if(!_table){
+        _table = table
+      }
+      var i = get_next_row_index(_table);
+      _table.rows().deselect();
+      _table.row(i).select();
+      //table.row(i).scrollTo();
+      scrollIntoViewIfNeeded(_table.row(i).node());
+    }
+
+    // function extend_selection_up() {
+    //   var i = get_prev_row_index();
+    //   table.row(i).select();
+    // }
+
+    // function extend_selection_down() {
+    //   var i = get_next_row_index();
+    //   table.row(i).select();
+    // }
+
+    // Initialize the data table itself.
+    table = $("#datatable").DataTable({
+      "processing": true,
+      "serverSide": true,
+      "ajax": "/datatables_data?taskId="+taskId+"&readonly="+readonly,
+      "columns": columns_data_object,
+      "order": [[4, "asc"]],
+
+      //"select": true,
+      //"keys": true,
+      "select": true,
+      "dom": "<'#above-table'Blf<'clear'>>rt<'#below-table'ip<'clear'>>",
+      "buttons": buttons_object,
+      "fixedColumns": {"leftColumns": 4},
+
+      "scrollY": get_desired_table_height() + "px", // provisional
+      "scrollX": get_desired_table_width() + "px", // provisional
+      "scroller": true,
+      "deferRender": true,
+      "initComplete": on_init_complete,
+      "createdRow": function( row, data, dataIndex){
+                if( 'yes' == data.PredByUser){
+                    $(row).addClass('yesRow');
+                }else if('no' == data.PredByUser){
+                    $(row).addClass('noRow');
+                }
+            }
+    });
+
+    function on_label_done() {
+      var scroll_pos = $(".dataTables_scrollBody").scrollTop();
+      var restore_scroll = function() {
+        $(".dataTables_scrollBody").scrollTop(scroll_pos)
+      };
+      table.ajax.reload(restore_scroll, false); // args retain user's paging
+    }
+
+    on_column_search_change = function(colname, input_id) {
+      var input = $("#" + input_id);
+      var column = table.column(colname + ":name");
+      if (column.search() !== input.val()) {
+        column.search(input.val()).draw();
+      }
+      return false;
+    }
+
+    label_example = function(row_id, label) {
+      label_examples([row_id], label);
+    };
+
+    function label_examples(row_ids, label) {
+      $.post("/datatables_label_examples", {"row_ids": row_ids.join(","), "label": label,taskId:taskId}).done(on_label_done);
+    }
+
+    function get_focused_row_idx() {
+      return table.cell({focused: true}).index().row;
+    }
+
+    // this still doesn't work.
+    // $(".dataTables_scrollBody tbody").on("keypress", function(ev) {
+    //   // Note: Event needs to be added to tbody; cf
+    //   // https://datatables.net/forums/discussion/3223/capture-keypressed-event-on-the-datatable
+    //   console.log(ev.which);
+    //   return true;
+    // });
+
+    // table.on("key", function(e, datatable, key, cell, originalEvent) {
+    //   console.log(["key", key]);
+    //   tmp = cell;
+    //   var row_idx = cell.index().row;
+    //   var row_data = table.row(row_idx).data();
+    //   var test_sid = row_data.TestSID;
+
+    //   if (key == 75) { // k, meaning up
+    //   }
+
+    //   if (key == 74) { // l, meaning down
+    //   }
+
+    //   // if (key == 89) { // y
+    //   //   label_example(test_sid, "yes");
+    //   // }
+
+    //   // if (key == 78) { // n
+    //   //   label_example(test_sid, "no");
+    //   // }
+    // });
+
+    // table.on("key-focus", function() {
+    //   table.row(get_focused_row_idx()).select();
+    //   console.log(["key focus", get_focused_row_idx()]);
+    // })
+
+    // table.on("click", "tbody td", function() {
+    //   var row_idx = table.cell(this).index().row;
+    //   //table.row(row_idx).select();
+    //   console.log(row_idx);
+    // })
+
+
+    $(document).on('keyup','.action-column-search', function(){
+          var $this = $(this);
+          var colname = $this.data('colname');
+          var column = table.column(colname + ":name");
+          var val = $this.val();
+          column.search(val).draw();
+    });
+  });
+});
+
+
+</script>
+
+<!--
+<div>
+<a href="javascript:show_features()">Show Features</a>
+<a href="javascript:add_feature()">Add Feature</a>
+<a href="javascript:add_feature()">Add Feature</a>
+</div>
+-->
+
+<div class="ui-layout-center">
+    <div id="tab-content-tb">
+        <table id="datatable" class="display" width="100%" cellspacing="0">
+            <thead></thead>
+            <tfoot></tfoot>
+        </table>
+    </div>
+    <div id="tab-content-ft">
+        The features will go here
+    </div>
+    <div id="tab-content-stats">
+        The stats will go here
+    </div>
+</div>
+</div>
+<div class="ui-layout-north">
+    <a href="/task/list.html" style="float:left;margin-right:10px;"> < Back to task list</a>
+    <form>
+        <label><input type="radio" name="tabs" id="tab-tb" checked="checked">Table</label>
+        <label><input type="radio" name="tabs" id="tab-ft">Features</label>
+        <label><input type="radio" name="tabs" id="tab-stats">Statistics</label>
+    </form>
+    <!--
+    <form action="/logout" class="logoutForm">
+        <button type="submit">Logout</button>
+    </form>
+    <button id="btnExport" type="button" style="float:right;position:absolute;top:14px;right:80px">Export</button>
+    -->
+</div>
+<div class="ui-layout-south">South</div>
+<div class="ui-layout-east">East</div>
+<div class="ui-layout-west">West</div>

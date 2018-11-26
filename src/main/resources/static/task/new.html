@@ -1,0 +1,458 @@
+<html>
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="../css/bootstrap.min.css">
+    <link rel="stylesheet" href="../css/notie.min.css">
+    <style>
+        .add-button{
+            background-color: transparent;
+            border-width: 0px;
+            color: #007bff;
+            text-decoration-line: underline;
+        }
+
+        .add-button:hover{
+            background-color: transparent;
+            border-width: 0px;
+            color: #007bff;
+            text-decoration-line: underline;
+        }
+
+        .delete-button{
+            background-color: transparent;
+            border-width: 0px;
+            color: #dc3545;
+            text-decoration-line: underline;
+        }
+
+        .delete-button:hover{
+            background-color: transparent;
+            border-width: 0px;
+            color: #dc3545;
+            text-decoration-line: underline;
+        }
+
+        .notie-container{
+            z-index:9999
+        }
+
+    </style>
+    <title>Create new task</title>
+</head>
+<body>
+
+<div class="container-fluid" style="margin-top:60px;">
+    <div class="row">
+        <nav class="col-sm-3 col-md-2 d-none d-sm-block bg-light sidebar">
+            <ul id="menus" class="nav nav-pills flex-column">
+
+            </ul>
+
+        </nav>
+
+        <main role="main" class="col-sm-9 ml-sm-auto col-md-10 pt-3">
+            <h1>Create new task</h1>
+            <form>
+                <div class="form-group row">
+                    <label for="taskName" class="col-sm-3 col-form-label">Task Name</label>
+                    <div class="col-sm-7">
+                        <input type="text" class="form-control" id="taskName">
+                    </div>
+                </div>
+                <div class="search-criteria-group" data-group-index="0">
+                    <div class="form-group row">
+                        <label class="col-sm-3 col-form-label">Search Criteria Group 1</label>
+                        <div class="col-sm-7">
+                            <select class="form-control searchCriteriaNames" style="width:200px;display:inline">
+                                <option value="LabChemTestSID">LabChemTestSID</option>
+                                <option value="LabChemTestName">LabChemTestName</option>
+                                <option value="Units">Units</option>
+                                <option value="LOINC">LOINC</option>
+                                <option value="Component">Component</option>
+                                <option value="Topography">Topography</option>
+                                <option value="p1">p1</option>
+                                <option value="p5">p5</option>
+                                <option value="p10">p10</option>
+                                <option value="p25">p25</option>
+                                <option value="p50">p50</option>
+                                <option value="p75">p75</option>
+                                <option value="p90">p90</option>
+                                <option value="p95">p95</option>
+                                <option value="p99">p99</option>
+                                <option value="n">n</option>
+                                <option value="min">min</option>
+                                <option value="max">max</option>
+                            </select>
+                            <select class="form-control searchCriteriaOperations" style="width:100px;display:inline">
+                                <option value="eq">Equals</option>
+                                <option value="contains">Contains</option>
+                                <option value="gt"> ></option>
+                                <option value="gte"> >=</option>
+                                <option value="lt"> <</option>
+                                <option value="lte"> <=</option>
+                            </select>
+                            <input type="text" class="searchCriteriaValues">
+                        </div>
+                        <div class="col-sm-2">
+                            <button class="btn btn-primary btn-sm action-add-criteria add-button" type="button">Add
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary" id="btnAddSearchCriteriaGroup">Add Search Criteria Group
+                </button>
+                <button type="button" class="btn btn-primary" id="btnTestSearchCriteria">Test Search Criteria</button>
+                <button type="button" class="btn btn-primary" id="btnCreateTask">Create Task</button>
+            </form>
+            <h2>Filtered example data</h2>
+            <div class="table-responsive" style="overflow-x:auto">
+                <table class="table table-striped">
+                    <thead id="tableExampleHeader">
+                    <tr>
+                        <th>#</th>
+                        <th>Name</th>
+                        <th>Created At</th>
+                    </tr>
+                    </thead>
+                    <tbody id="tableExampleBody">
+
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+</div>
+
+<!-- Bootstrap core JavaScript
+================================================== -->
+<!-- Placed at the end of the document so the pages load faster -->
+<script src="../js/jquery-3.2.1.min.js"></script>
+<script src="../js/popper.min.js"></script>
+<script src="../js/bootstrap.min.js"></script>
+<script src="../js/notie.min.js"></script>
+<script src="../js/menus.js"></script>
+<script src="../js/header.js"></script>
+<script src="../js/restClient.js"></script>
+<script>
+
+    var testSearchCriteria = function(){
+        var searchCriteria = generateSearchCriteria();
+        $.post('/api/tasks/testSearchCriteria',{
+            searchCriteria:searchCriteria
+        },function(data){
+            console.log('examples: ',data);
+            renderTableExample(data);
+        });
+    };
+
+    var renderTableExample = function(data){
+        var headersHtml = '';
+        var bodyHtml = '';
+        $.each(data,function(index,item){
+            if(index == 0){
+                headersHtml += '<tr>';
+                headersHtml += '<th>#</th>';
+                for(var name in item){
+                    headersHtml += '<th>' + name +'</th>';
+                }
+                headersHtml += '</tr>';
+            }
+
+            bodyHtml += '<tr>';
+            bodyHtml += '<td>'+(index+1)+'</td>';
+            for(var name in item){
+                bodyHtml += '<td>'+item[name]+'</td>';
+            }
+            bodyHtml += '</tr>';
+        });
+
+        $('#tableExampleHeader').html(headersHtml);
+        $('#tableExampleBody').html(bodyHtml);
+    };
+
+    var createTask = function(){
+        var taskName = $('#taskName').val();
+        if(taskName.length == 0){
+            notie.alert({
+                type:2,
+                text:'Task name can not be empty'
+            });
+            return;
+        }
+
+        var searchCriteria = generateSearchCriteria();
+
+        $.post('/api/tasks',{
+            name:taskName,
+            searchCriteria: searchCriteria
+
+        }, function(data){
+            console.log('create response:', data);
+            //alert('Create successful');
+            notie.alert({
+                type:1,
+                text:'Successfully created task "'+taskName+'"'
+            });
+
+            setTimeout(function(){
+                window.location.href='list.html';
+            },2000);
+
+        })
+    }
+
+    var generateSearchCriteria = function(){
+        var searchCriteria = '';
+        var firstGroup = true;
+        $('.search-criteria-group').each(function(index,group){
+            var $group = $(group);
+            var searchCriteriaNames = [];
+            $('.searchCriteriaNames',$group).each(function(index,item){
+                searchCriteriaNames.push($(item).val());
+            });
+            var searchCriteriaOperations = [];
+            $('.searchCriteriaOperations',$group).each(function(index,item){
+                searchCriteriaOperations.push($(item).val());
+            });
+            var searchCriteriaValues = [];
+            $('.searchCriteriaValues',$group).each(function(index,item){
+                searchCriteriaValues.push($(item).val());
+            });
+            var hasContent = false;
+            var tmpSearchCriteria = '';
+            var first = true;
+            for(var i=0;i<searchCriteriaValues.length;i++){
+                var searchCriteriaValue = searchCriteriaValues[i];
+                if(!searchCriteriaValue || searchCriteriaValue.length == 0){
+                    continue;
+                }
+                hasContent = true;
+                var searchCriteriaName = searchCriteriaNames[i];
+                var searchCriteriaOperation = searchCriteriaOperations[i];
+                if(!first){
+                    tmpSearchCriteria += ' AND ';
+                }
+                first = false;
+                tmpSearchCriteria += searchCriteriaName;
+                switch(searchCriteriaOperation){
+                    case 'eq':
+                        searchCriteriaOperation = '=';
+                        searchCriteriaValue = "'"+searchCriteriaValue+"'";
+                        break;
+                    case 'contains':
+                        searchCriteriaOperation = 'like';
+                        searchCriteriaValue = "'%"+searchCriteriaValue+"%'";
+                        break;
+                    case 'gt':
+                        searchCriteriaOperation = '>';
+                        break;
+                    case 'gte':
+                        searchCriteriaOperation = '>=';
+                        break;
+                    case 'lt':
+                        searchCriteriaOperation = '<';
+                        break;
+                    case 'lte':
+                        searchCriteriaOperation = '<=';
+                        break;
+                }
+
+                tmpSearchCriteria += ' '+searchCriteriaOperation+' '+searchCriteriaValue;
+            }
+
+            if(hasContent){
+                if(!firstGroup){
+                    searchCriteria += ' OR '
+                }
+                firstGroup = false;
+                searchCriteria += '(' + tmpSearchCriteria +')';
+            }
+        });
+
+        console.log('searchCriteria', searchCriteria);
+        return searchCriteria;
+    }
+
+    var parseSearchCriteria = function(searchCriteria){
+        var searchCriterias = searchCriteria.split('AND');
+        //console.log(searchCriterias);
+        var first = true;
+        var counter = 0;
+        $.each(searchCriterias,function(index,item){
+            if(!item || item.length == 0){
+
+            }else{
+                item = item.trim();
+                //console.log(item);
+                var items = item.split(' ');
+                if(first){
+                    first = false;
+                }else{
+                    var html = generateSearchCriteriaItemHtml();
+                    var container = $($('.searchCriteriaNames')[counter-1]).parent().parent();
+                    $(html).insertAfter(container);
+                }
+                $($('.searchCriteriaNames')[counter]).val(items[0]);
+                switch(items[1]){
+                    case 'like':
+                        $($('.searchCriteriaOperations')[counter]).val('contains');
+                        var val = items[2].replace("'%",'');
+                        val = val.replace("%'",'');
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                    case '=':
+                        $($('.searchCriteriaOperations')[counter]).val('eq');
+                        var val = items[2].replace("'",'');
+                        val = val.replace("'",'');
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                    case '>':
+                        $($('.searchCriteriaOperations')[counter]).val('gt');
+                        var val = items[2];
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                    case '>=':
+                        $($('.searchCriteriaOperations')[counter]).val('gte');
+                        var val = items[2];
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                    case '<':
+                        $($('.searchCriteriaOperations')[counter]).val('lt');
+                        var val = items[2];
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                    case '<=':
+                        $($('.searchCriteriaOperations')[counter]).val('lte');
+                        var val = items[2];
+                        $($('.searchCriteriaValues')[counter]).val(val);
+                        break;
+                }
+                counter++;
+            }
+        });
+    }
+
+    var generateSearchCriteriaItemHtml = function(){
+        var html = '<div class="form-group row">' +
+                    '<div class="col-sm-3"></div>' +
+                    '<div class="col-sm-7">' +
+                        '<select class="form-control searchCriteriaNames" style="width:200px;display:inline">'+
+                            '<option value="LabChemTestSID">LabChemTestSID</option>'+
+                            '<option value="LabChemTestName">LabChemTestName</option>'+
+                            '<option value="Units">Units</option>'+
+                            '<option value="LOINC">LOINC</option>'+
+                            '<option value="Component">Component</option>'+
+                            '<option value="Topography">Topography</option>'+
+                            '<option value="p1">p1</option>'+
+                            '<option value="p5">p5</option>'+
+                            '<option value="p10">p10</option>'+
+                            '<option value="p25">p25</option>'+
+                            '<option value="p50">p50</option>'+
+                            '<option value="p75">p75</option>'+
+                            '<option value="p90">p90</option>'+
+                            '<option value="p95">p95</option>'+
+                            '<option value="p99">p99</option>'+
+                            '<option value="n">n</option>'+
+                            '<option value="min">min</option>'+
+                            '<option value="max">max</option>'+
+                        '</select>'+
+                        '<select class="form-control searchCriteriaOperations" style="width:100px;display:inline;margin-left: 5px;margin-right: 5px;">'+
+                            '<option value="eq">Equals</option>'+
+                            '<option value="contains">Contains</option>'+
+                            '<option value="gt"> > </option>'+
+                            '<option value="gte"> >= </option>'+
+                            '<option value="lt"> < </option>'+
+                            '<option value="lte"> <= </option>'+
+                        '</select>'+
+                        '<input type="text" class="searchCriteriaValues">'+
+                    '</div>'+
+                    '<div class="col-sm-2">'+
+                        '<button class="btn btn-primary btn-sm action-add-criteria add-button" type="button">Add</button>'+
+                        '<button class="btn btn-danger btn-sm action-delete-criteria delete-button" type="button">Delete</button>'+
+                    '</div>'+
+                '</div>';
+        return html;
+    }
+
+    $(function(){
+        menus.init();
+        header.init();
+        $('#btnTestSearchCriteria').click(testSearchCriteria);
+        $('#btnCreateTask').click(createTask);
+        $(document).on('click','.action-add-criteria', function(){
+            var $this = $(this);
+            var html = generateSearchCriteriaItemHtml();
+            var container = $this.parent().parent();
+            $(html).insertAfter(container);
+        });
+
+        $(document).on('click','.action-delete-criteria',function(){
+            var $this = $(this);
+            var container = $this.parent().parent();
+            container.remove();
+        });
+
+        $(document).on('click','.action-delete-criteria-group', function(){
+            var $this = $(this);
+            var container = $this.parent().parent().parent();
+            container.remove();
+        });
+
+        $('#btnAddSearchCriteriaGroup').click(function(){
+            var $this = $(this);
+            var searchCriteriaGroups = $('.search-criteria-group');
+            var html = '<div class="search-criteria-group" data-group-index="'+searchCriteriaGroups.length+'"><div class="form-group row">' +
+                    '<div class="col-sm-3 col-form-label"><span>&times;</span>Search Criteria Group '+(searchCriteriaGroups.length+1)+'</div>' +
+                    '<div class="col-sm-7">' +
+                        '<select class="form-control searchCriteriaNames" style="width:200px;display:inline">'+
+                            '<option value="LabChemTestSID">LabChemTestSID</option>'+
+                            '<option value="LabChemTestName">LabChemTestName</option>'+
+                            '<option value="Units">Units</option>'+
+                            '<option value="LOINC">LOINC</option>'+
+                            '<option value="Component">Component</option>'+
+                            '<option value="Topography">Topography</option>'+
+                            '<option value="p1">p1</option>'+
+                            '<option value="p5">p5</option>'+
+                            '<option value="p10">p10</option>'+
+                            '<option value="p25">p25</option>'+
+                            '<option value="p50">p50</option>'+
+                            '<option value="p75">p75</option>'+
+                            '<option value="p90">p90</option>'+
+                            '<option value="p95">p95</option>'+
+                            '<option value="p99">p99</option>'+
+                            '<option value="n">n</option>'+
+                            '<option value="min">min</option>'+
+                            '<option value="max">max</option>'+
+                        '</select>'+
+                        '<select class="form-control searchCriteriaOperations" style="width:100px;display:inline;margin-left: 5px;margin-right: 5px;">'+
+                            '<option value="eq">Equals</option>'+
+                            '<option value="contains">Contains</option>'+
+                            '<option value="gt"> > </option>'+
+                            '<option value="gte"> >= </option>'+
+                            '<option value="lt"> < </option>'+
+                            '<option value="lte"> <= </option>'+
+                        '</select>'+
+                        '<input type="text" class="searchCriteriaValues">'+
+                    '</div>'+
+                    '<div class="col-sm-2">'+
+                        '<button class="btn btn-primary btn-sm action-add-criteria add-button" type="button">Add</button>'+
+                        '<button class="btn btn-danger btn-sm action-delete-criteria-group delete-button" type="button">Delete Group</button>'+
+                    '</div>'+
+                '</div></div>';
+            $this.before(html);
+
+        });
+    });
+
+
+
+
+</script>
+
+</body>
+</html>
